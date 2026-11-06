@@ -6,3 +6,12 @@ Analysis/temp/
 *.log
 *.fls
 *.aux
+Lean4/.lake/build/ir/Googology.setup.json
+.gitignore
+*.hash
+*.trace
+*.olean
+
+*.ilean
+Lean4/.lake/build/ir/Googology.c
+*.7z
