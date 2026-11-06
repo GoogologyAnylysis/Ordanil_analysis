@@ -196,26 +196,35 @@ app.post('/api/register', async (c) => {
     );
   }
 
+  const t0 = Date.now();
   const token = await gh.getInstallationToken(c.env, user.installation_id);
+  console.log(`[register] token ${Date.now() - t0}ms`);
   const repoNodeId = await gh.getRepoNodeId(c.env, token);
+  console.log(`[register] repoNodeId ${Date.now() - t0}ms`);
   const rules = await gh.listProtectionRules(token, repoNodeId);
+  console.log(`[register] listRules ${Date.now() - t0}ms, count=${rules.length}`);
 
   // 1) 先上保护规则：分支即使还不存在，GitHub 也会先记住，分支一出现就生效。
   //    顺序很关键——先有规则再给权限，中间不存在"能推但没人管"的窗口。
   let protectionApplied = false;
   try {
     for (const pattern of [namespace, `${namespace}/*`, `${namespace}/**/*`]) {
+      const tp = Date.now();
       await gh.upsertProtectionRule(token, repoNodeId, rules, pattern, [user.node_id]);
+      console.log(`[register] rule ${pattern} ${Date.now() - tp}ms`);
     }
     // 基准分支同样纳入保护：只允许管理员直推。管理员自身是否再受额外约束
     // 由别的规则决定，这里只是补一条缺失的默认规则，已有的不覆盖。
     if (!rules.some((r) => r.pattern === c.env.BASE_BRANCH)) {
+      const tp = Date.now();
       await gh.createBranchProtectionRule(token, repoNodeId, c.env.BASE_BRANCH, []);
+      console.log(`[register] rule ${c.env.BASE_BRANCH} ${Date.now() - tp}ms`);
     }
     protectionApplied = true;
   } catch (e) {
-    console.warn('branch protection failed:', e);
+    console.warn('[register] branch protection failed:', e);
   }
+  console.log(`[register] protection done ${Date.now() - t0}ms, applied=${protectionApplied}`);
 
   // 2) 落库 + 建分支（仅当远端不存在时才创建，已存在就复用）
   let ns = existing;
@@ -223,7 +232,9 @@ app.post('/api/register', async (c) => {
   if (!ns) {
     // 远端已有同名分支 → 直接复用，不重复创建
     const exists = await gh.branchExists(c.env, token, namespace);
+    console.log(`[register] branchExists=${exists} ${Date.now() - t0}ms`);
     const sha = exists ? null : await gh.createBranch(c.env, token, namespace);
+    console.log(`[register] createBranch sha=${sha ? sha.slice(0, 8) : null} ${Date.now() - t0}ms`);
     try {
       ns = await db.insertNamespace(c.env, {
         namespace,
@@ -240,9 +251,11 @@ app.post('/api/register', async (c) => {
     reused = true;
   }
   if (!ns) throw new ApiError(500, '命名空间写入异常');
+  console.log(`[register] ns inserted ${Date.now() - t0}ms`);
 
   // 3) 最后才授予写权限：前面任何一步失败都拿不到 push，重试即可自愈
   await gh.addCollaborator(c.env, token, user.login);
+  console.log(`[register] addCollaborator ${Date.now() - t0}ms`);
 
   await db.refreshNamespaceGrant(c.env, namespace, protectionApplied);
 
@@ -359,13 +372,20 @@ app.post('/api/resync', async (c) => {
   });
 });
 
+// ---------------------------------------------------------------- 静态资源兜底
+// Pages _worker.js 模式下，所有请求都经过 Worker。
+// 未匹配 /api/* 的请求交给 ASSETS（即 public/ 下的静态文件）。
+app.all('*', async (c) => {
+  return c.env.ASSETS.fetch(c.req.raw);
+});
+
 // ---------------------------------------------------------------- 兜底
 
 app.notFound((c) => c.json({ error: '接口不存在' }, 404));
 
 app.onError((err, c) => {
   if (err instanceof ApiError) return c.json({ error: err.message }, err.status as 400);
-  console.error(err);
+  console.error('=== UNHANDLED ERROR ===', err && err.stack ? err.stack : err);
   return c.json({ error: '服务器内部错误' }, 500);
 });
 

@@ -1,0 +1,22 @@
+name: Branch Watch
+
+# 当仓库里有分支被创建或删除时，通知 Worker 重新同步保护规则。
+# 也支持手动触发（workflow_dispatch）做兜底。
+
+on:
+  create:
+  delete:
+  workflow_dispatch:
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resync branch protections
+        run: |
+          curl -sS -X POST "${RESYNC_URL}" \
+            -H "Authorization: Bearer ${RESYNC_SECRET}" \
+            --fail
+        env:
+          RESYNC_URL: ${{ secrets.RESYNC_URL }}
+          RESYNC_SECRET: ${{ secrets.BRANCH_GATE_RESYNC_SECRET }}
