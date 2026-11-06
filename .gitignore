@@ -15,3 +15,4 @@ Lean4/.lake/build/ir/Googology.setup.json
 *.ilean
 Lean4/.lake/build/ir/Googology.c
 *.7z
+temp/

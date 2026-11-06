@@ -12,11 +12,11 @@ GITHUB_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GITHUB_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ...\n-----END PRIVATE KEY-----\n"
 
 # 目标仓库（分支会被创建在这里）
-TARGET_REPO_OWNER=your-github-name
-TARGET_REPO_NAME=notations
+TARGET_REPO_OWNER=GoogologyAnylysis
+TARGET_REPO_NAME=Ordanil_analysis
 
 # 从哪个分支切出新分支
-BASE_BRANCH=main
+BASE_BRANCH=master
 
 # Actions 调用 /api/resync 的共享密钥（仓库 Secret BRANCH_GATE_RESYNC_SECRET 必须与此一致）
 # 生成：-join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })

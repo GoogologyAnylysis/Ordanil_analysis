@@ -1,3 +1,10 @@
+-- 【旧库迁移】如果 users 表是早期版本建的（没有 node_id 列），
+-- 下面这条 CREATE 不会补列，需要先手工执行一次：
+--   ALTER TABLE users ADD COLUMN node_id TEXT NOT NULL DEFAULT '';
+-- （全新库直接用本文件建表，不需要执行这句）
+-- 更彻底的做法是重建：DROP TABLE users; 再跑本文件。
+-- 早期版本的 branches 表本文件已不再使用，可执行 DROP TABLE branches; 清掉。
+
 -- 用户表
 -- github_id 是 GitHub 的不可变数字 ID（真实 ID），不是 login。
 -- login 可以被改名、被释放后被他人抢注，所以绝对不能拿它当主键。

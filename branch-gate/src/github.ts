@@ -106,47 +106,31 @@ export async function getViewer(userToken: string): Promise<GitHubViewer> {
   return (await res.json()) as GitHubViewer;
 }
 
-/** 找到用户安装中、且覆盖了目标仓库的那个安装 ID。 */
-export async function resolveInstallationId(env: Env, userToken: string): Promise<number | null> {
-  const target = `${env.TARGET_REPO_OWNER}/${env.TARGET_REPO_NAME}`.toLowerCase();
-
-  const listRes = await fetch(`${API}/user/installations?per_page=100`, {
-    headers: ghHeaders(userToken),
-  });
-  if (!listRes.ok) return null;
-  const list = (await listRes.json()) as { installations?: Array<{ id: number }> };
-
-  for (const inst of list.installations ?? []) {
-    const repoRes = await fetch(`${API}/user/installations/${inst.id}/repositories?per_page=100`, {
-      headers: ghHeaders(userToken),
-    });
-    if (!repoRes.ok) continue;
-    const repos = (await repoRes.json()) as { repositories?: Array<{ full_name: string }> };
-    if ((repos.repositories ?? []).some((r) => r.full_name.toLowerCase() === target)) {
-      return inst.id;
-    }
-  }
-  return null;
-}
-
-/** resync 用：以 App 身份找目标仓库属主（组织/个人）的安装，不依赖任何用户会话。 */
+/** 以 App 身份找目标仓库属主（组织/个人）的安装，不依赖任何用户会话。 */
 export async function resolveInstallationIdForRepo(env: Env): Promise<number> {
   const res = await fetch(`${API}/app/installations?per_page=100`, {
     headers: ghHeaders(await createAppJwt(env)),
   });
+  const raw = await res.text();
   if (!res.ok) {
-    throw new ApiError(502, `读取 App 安装列表失败 (${res.status})`);
+    throw new ApiError(502, `读取 App 安装列表失败 (${res.status})：${raw.slice(0, 120)}`);
   }
-  const list = (await res.json()) as {
-    installations?: Array<{ id: number; account?: { login?: string } }>;
-  };
-  const hit = (list.installations ?? []).find(
+  // 这个接口直接返回顶层数组，没有 installations 包装
+  let list: Array<{ id: number; account?: { login?: string } }> = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) list = parsed;
+  } catch {
+    list = [];
+  }
+  const hit = list.find(
     (i) => i.account?.login?.toLowerCase() === env.TARGET_REPO_OWNER.toLowerCase()
   );
   if (!hit) {
+    const accounts = list.map((i) => i.account?.login).filter(Boolean).join(', ') || '无';
     throw new ApiError(
       502,
-      `找不到 ${env.TARGET_REPO_OWNER} 的 App 安装，请先把 GitHub App 安装到该组织并选中目标仓库`
+      `找不到 ${env.TARGET_REPO_OWNER} 的 App 安装（当前已安装账户：${accounts}），请先把 GitHub App 安装到该组织并选中目标仓库`
     );
   }
   return hit.id;
@@ -348,4 +332,24 @@ export async function listProtectionRules(
     cursor = conn?.pageInfo.hasNextPage ? conn.pageInfo.endCursor : null;
   } while (cursor);
   return rules;
+}
+
+/**
+ * 按 pattern 建或改一条规则：已存在就更新（把允许推送的人换成新的），
+ * 不存在就新建。这样命名空间被回收后再分配时也不会撞「pattern 已存在」。
+ */
+export async function upsertProtectionRule(
+  token: string,
+  repoNodeId: string,
+  existing: Array<{ id: string; pattern: string }>,
+  pattern: string,
+  pushActorIds: string[]
+): Promise<'created' | 'updated'> {
+  const rule = existing.find((r) => r.pattern === pattern);
+  if (rule) {
+    await updateBranchProtectionRule(token, rule.id, pattern, pushActorIds);
+    return 'updated';
+  }
+  await createBranchProtectionRule(token, repoNodeId, pattern, pushActorIds);
+  return 'created';
 }

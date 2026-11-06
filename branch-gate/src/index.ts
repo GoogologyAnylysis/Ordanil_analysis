@@ -59,7 +59,12 @@ app.get('/api/auth/callback', async (c) => {
   const expected = getCookie(c, STATE_COOKIE);
 
   if (!code) throw new ApiError(400, '缺少授权码 code');
-  if (!expected || expected !== state) throw new ApiError(400, 'state 校验失败，请重新登录');
+  if (!expected || expected !== state) {
+    // 从「Install App」按钮发起的授权不会带我们下发的 state cookie。
+    // 这种回调不换 token，直接回首页让用户点击正常登录。
+    if (c.req.query('setup_action')) return c.redirect('/');
+    throw new ApiError(400, 'state 校验失败，请重新登录');
+  }
   deleteCookie(c, STATE_COOKIE, { path: '/' });
 
   const userToken = await gh.exchangeCode(c.env, code);
@@ -68,8 +73,15 @@ app.get('/api/auth/callback', async (c) => {
   // id 是 GitHub 分配的不可变数字 ID，即"真实 ID"，用它做身份主键
   const user = await db.upsertUser(c.env, viewer);
 
-  // 顺手确认这个用户是否已安装 App 并授权了目标仓库
-  const installationId = await gh.resolveInstallationId(c.env, userToken);
+  // App 是按组织安装的：普通协作者不会出现在自己的 /user/installations 里，
+  // 所以这里用 App 身份去查组织安装，而不是用用户 token。
+  let installationId: number | null = null;
+  try {
+    installationId = await gh.resolveInstallationIdForRepo(c.env);
+  } catch (e) {
+    console.warn('resolve installation failed:', e);
+    installationId = null;
+  }
   await db.setInstallationId(c.env, user.github_id, installationId);
 
   const session = await db.createSession(c.env, user.github_id, SESSION_TTL_MS);
@@ -96,6 +108,18 @@ app.get('/api/me', async (c) => {
   const user = await currentUser(c);
   if (!user) return c.json({ loggedIn: false });
 
+  // 安装可能发生在登录之后（安装回调不换 token），此时库里还没有 installation_id。
+  // 这里惰性补解析一次，用户刷新页面即可，不必重新登录。
+  let installationId = user.installation_id;
+  if (installationId == null) {
+    try {
+      installationId = await gh.resolveInstallationIdForRepo(c.env);
+      await db.setInstallationId(c.env, user.github_id, installationId);
+    } catch (e) {
+      console.warn('resolve installation failed:', e);
+    }
+  }
+
   const ns = await db.getNamespaceByOwner(c.env, user.github_id);
   return c.json({
     loggedIn: true,
@@ -104,7 +128,7 @@ app.get('/api/me', async (c) => {
       login: user.login,
       name: user.name,
       avatarUrl: user.avatar_url,
-      appInstalled: user.installation_id != null,
+      appInstalled: installationId != null,
     },
     namespace: ns
       ? {
@@ -131,6 +155,9 @@ function assertValidNamespace(name: string): void {
   if (name.length > 100) throw new ApiError(400, '命名空间最长 100 个字符');
   if (!NAMESPACE_ALLOWED.test(name)) {
     throw new ApiError(400, '命名空间只能包含字母、数字与 . _ -');
+  }
+  if (name.startsWith('.') || name.startsWith('-')) {
+    throw new ApiError(400, '命名空间不能以 . 或 - 开头');
   }
   if (name.includes('..') || name.endsWith('.') || name.endsWith('.lock')) {
     throw new ApiError(400, '命名空间不合法');
@@ -170,45 +197,53 @@ app.post('/api/register', async (c) => {
   }
 
   const token = await gh.getInstallationToken(c.env, user.installation_id);
+  const repoNodeId = await gh.getRepoNodeId(c.env, token);
+  const rules = await gh.listProtectionRules(token, repoNodeId);
 
-  let ns = existing;
-  let reused = false;
-
-  if (!ns) {
-    // 2) 服务端记录里没有，但远端仓库已经存在同名分支 → 同样拒绝，避免抢别人的分支
-    if (await gh.branchExists(c.env, token, namespace)) {
-      throw new ApiError(409, `分支「${namespace}」在仓库中已存在，请换一个名字`);
-    }
-
-    // 3) 加协作者 + 创建根分支
-    await gh.addCollaborator(c.env, token, user.login);
-    const sha = await gh.createBranch(c.env, token, namespace);
-    ns = await db.insertNamespace(c.env, {
-      namespace,
-      githubId: user.github_id,
-      repoOwner: c.env.TARGET_REPO_OWNER,
-      repoName: c.env.TARGET_REPO_NAME,
-      baseBranch: c.env.BASE_BRANCH,
-      headSha: sha,
-    });
-  } else {
-    // 本人复用自己的命名空间 → 刷新权限
-    reused = true;
-    await gh.addCollaborator(c.env, token, user.login);
-  }
-
-  // 4) 套分支保护规则：把该命名空间下所有分支的推送权限定给该用户
+  // 1) 先上保护规则：分支即使还不存在，GitHub 也会先记住，分支一出现就生效。
+  //    顺序很关键——先有规则再给权限，中间不存在"能推但没人管"的窗口。
   let protectionApplied = false;
   try {
-    const repoNodeId = await gh.getRepoNodeId(c.env, token);
-    const patterns = [namespace, `${namespace}/*`, `${namespace}/**/*`];
-    for (const pattern of patterns) {
-      await gh.createBranchProtectionRule(token, repoNodeId, pattern, [user.node_id]);
+    for (const pattern of [namespace, `${namespace}/*`, `${namespace}/**/*`]) {
+      await gh.upsertProtectionRule(token, repoNodeId, rules, pattern, [user.node_id]);
+    }
+    // 基准分支同样纳入保护：只允许管理员直推。管理员自身是否再受额外约束
+    // 由别的规则决定，这里只是补一条缺失的默认规则，已有的不覆盖。
+    if (!rules.some((r) => r.pattern === c.env.BASE_BRANCH)) {
+      await gh.createBranchProtectionRule(token, repoNodeId, c.env.BASE_BRANCH, []);
     }
     protectionApplied = true;
   } catch (e) {
     console.warn('branch protection failed:', e);
   }
+
+  // 2) 落库 + 建分支（仅当远端不存在时才创建，已存在就复用）
+  let ns = existing;
+  let reused = false;
+  if (!ns) {
+    // 远端已有同名分支 → 直接复用，不重复创建
+    const exists = await gh.branchExists(c.env, token, namespace);
+    const sha = exists ? null : await gh.createBranch(c.env, token, namespace);
+    try {
+      ns = await db.insertNamespace(c.env, {
+        namespace,
+        githubId: user.github_id,
+        repoOwner: c.env.TARGET_REPO_OWNER,
+        repoName: c.env.TARGET_REPO_NAME,
+        baseBranch: c.env.BASE_BRANCH,
+        headSha: sha,
+      });
+    } catch {
+      throw new ApiError(409, '该命名空间刚被别人占用，请换一个名字');
+    }
+  } else {
+    reused = true;
+  }
+  if (!ns) throw new ApiError(500, '命名空间写入异常');
+
+  // 3) 最后才授予写权限：前面任何一步失败都拿不到 push，重试即可自愈
+  await gh.addCollaborator(c.env, token, user.login);
+
   await db.refreshNamespaceGrant(c.env, namespace, protectionApplied);
 
   return c.json({
@@ -287,16 +322,15 @@ app.post('/api/resync', async (c) => {
 
   const existing = await gh.listProtectionRules(token, repoNodeId);
 
+  // 基准分支也纳入保护：默认只允许管理员直推。管理员已经配过规则时保持原样。
+  if (!existing.some((r) => r.pattern === c.env.BASE_BRANCH)) {
+    desired.set(c.env.BASE_BRANCH, []);
+  }
+
   for (const [pattern, actors] of desired) {
-    const ex = existing.find((r) => r.pattern === pattern);
     try {
-      if (ex) {
-        await gh.updateBranchProtectionRule(token, ex.id, pattern, actors);
-        diff.updated.push(pattern);
-      } else {
-        await gh.createBranchProtectionRule(token, repoNodeId, pattern, actors);
-        diff.created.push(pattern);
-      }
+      const action = await gh.upsertProtectionRule(token, repoNodeId, existing, pattern, actors);
+      (action === 'created' ? diff.created : diff.updated).push(pattern);
     } catch (e) {
       diff.errors.push(`写入规则 ${pattern} 失败：${(e as Error).message}`);
     }

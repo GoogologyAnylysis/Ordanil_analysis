@@ -88,7 +88,7 @@ export async function insertNamespace(
     repoOwner: string;
     repoName: string;
     baseBranch: string;
-    headSha: string;
+    headSha?: string | null;
   }
 ): Promise<NamespaceRow> {
   const now = new Date().toISOString();
@@ -103,7 +103,7 @@ export async function insertNamespace(
       input.repoOwner,
       input.repoName,
       input.baseBranch,
-      input.headSha,
+      input.headSha ?? null,
       now,
       now
     )
