@@ -2254,8 +2254,7 @@ async function upsertUser(env, viewer) {
        last_login_at = excluded.last_login_at`
   ).bind(viewer.id, viewer.node_id, viewer.login, viewer.name, viewer.avatar_url, now, now).run();
   const row = await getUser(env, viewer.id);
-  if (!row)
-    throw new Error("\u7528\u6237\u5199\u5165\u540E\u8BFB\u53D6\u5931\u8D25");
+  if (!row) throw new Error("\u7528\u6237\u5199\u5165\u540E\u8BFB\u53D6\u5931\u8D25");
   return row;
 }
 async function getUser(env, githubId) {
@@ -2306,8 +2305,7 @@ async function insertNamespace(env, input) {
     now
   ).run();
   const row = await getNamespaceByName(env, input.namespace);
-  if (!row)
-    throw new Error("\u547D\u540D\u7A7A\u95F4\u5199\u5165\u540E\u8BFB\u53D6\u5931\u8D25");
+  if (!row) throw new Error("\u547D\u540D\u7A7A\u95F4\u5199\u5165\u540E\u8BFB\u53D6\u5931\u8D25");
   return row;
 }
 async function listNamespaces(env) {
@@ -2333,16 +2331,14 @@ function ghHeaders(token) {
 function b64url(input) {
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : new Uint8Array(input);
   let bin = "";
-  for (const b of bytes)
-    bin += String.fromCharCode(b);
+  for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function pemToArrayBuffer(pem) {
   const body = pem.replace(/-----BEGIN [^-]+-----/, "").replace(/-----END [^-]+-----/, "").replace(/\s+/g, "");
   const bin = atob(body);
   const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++)
-    buf[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
   return buf.buffer;
 }
 async function createAppJwt(env) {
@@ -2406,8 +2402,7 @@ async function exchangeCode(env, code) {
 }
 async function getViewer(userToken) {
   const res = await fetch(`${API}/user`, { headers: ghHeaders(userToken) });
-  if (!res.ok)
-    throw new ApiError(401, `\u8BFB\u53D6 GitHub \u7528\u6237\u4FE1\u606F\u5931\u8D25 (${res.status})`);
+  if (!res.ok) throw new ApiError(401, `\u8BFB\u53D6 GitHub \u7528\u6237\u4FE1\u606F\u5931\u8D25 (${res.status})`);
   return await res.json();
 }
 async function resolveInstallationIdForRepo(env) {
@@ -2421,8 +2416,7 @@ async function resolveInstallationIdForRepo(env) {
   let list = [];
   try {
     const parsed = JSON.parse(raw2);
-    if (Array.isArray(parsed))
-      list = parsed;
+    if (Array.isArray(parsed)) list = parsed;
   } catch {
     list = [];
   }
@@ -2443,10 +2437,8 @@ async function branchExists(env, token, branch) {
     `${API}/repos/${env.TARGET_REPO_OWNER}/${env.TARGET_REPO_NAME}/branches/${encodeURIComponent(branch)}`,
     { headers: ghHeaders(token) }
   );
-  if (res.status === 404)
-    return false;
-  if (res.ok)
-    return true;
+  if (res.status === 404) return false;
+  if (res.ok) return true;
   throw new ApiError(502, `\u67E5\u8BE2\u5206\u652F\u5931\u8D25 (${res.status})`);
 }
 async function listBranches(env, token) {
@@ -2456,12 +2448,10 @@ async function listBranches(env, token) {
     const res = await fetch(`${repo}/branches?per_page=100&page=${page}`, {
       headers: ghHeaders(token)
     });
-    if (!res.ok)
-      throw new ApiError(502, `\u8BFB\u53D6\u5206\u652F\u5217\u8868\u5931\u8D25 (${res.status})`);
+    if (!res.ok) throw new ApiError(502, `\u8BFB\u53D6\u5206\u652F\u5217\u8868\u5931\u8D25 (${res.status})`);
     const items = await res.json();
     names.push(...items.map((i) => i.name));
-    if (items.length < 100)
-      break;
+    if (items.length < 100) break;
   }
   return names;
 }
@@ -2504,11 +2494,9 @@ async function getRepoNodeId(env, token) {
     `${API}/repos/${env.TARGET_REPO_OWNER}/${env.TARGET_REPO_NAME}`,
     { headers: ghHeaders(token) }
   );
-  if (!res.ok)
-    throw new ApiError(502, `\u8BFB\u53D6\u4ED3\u5E93\u4FE1\u606F\u5931\u8D25 (${res.status})`);
+  if (!res.ok) throw new ApiError(502, `\u8BFB\u53D6\u4ED3\u5E93\u4FE1\u606F\u5931\u8D25 (${res.status})`);
   const data = await res.json();
-  if (!data.node_id)
-    throw new ApiError(502, "\u4ED3\u5E93 node_id \u7F3A\u5931");
+  if (!data.node_id) throw new ApiError(502, "\u4ED3\u5E93 node_id \u7F3A\u5931");
   return data.node_id;
 }
 async function createBranchProtectionRule(token, repoNodeId, pattern, pushActorIds) {
@@ -2604,14 +2592,12 @@ function isHttps(url) {
 }
 async function currentUser(c) {
   const token = getCookie(c, SESSION_COOKIE);
-  if (!token)
-    return null;
+  if (!token) return null;
   return getSessionUser(c.env, token);
 }
 async function requireUser(c) {
   const user = await currentUser(c);
-  if (!user)
-    throw new ApiError(401, "\u8BF7\u5148\u4F7F\u7528 GitHub \u767B\u5F55");
+  if (!user) throw new ApiError(401, "\u8BF7\u5148\u4F7F\u7528 GitHub \u767B\u5F55");
   return user;
 }
 app.get("/api/auth/login", (c) => {
@@ -2634,11 +2620,9 @@ app.get("/api/auth/callback", async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
   const expected = getCookie(c, STATE_COOKIE);
-  if (!code)
-    throw new ApiError(400, "\u7F3A\u5C11\u6388\u6743\u7801 code");
+  if (!code) throw new ApiError(400, "\u7F3A\u5C11\u6388\u6743\u7801 code");
   if (!expected || expected !== state) {
-    if (c.req.query("setup_action"))
-      return c.redirect("/");
+    if (c.req.query("setup_action")) return c.redirect("/");
     throw new ApiError(400, "state \u6821\u9A8C\u5931\u8D25\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55");
   }
   deleteCookie(c, STATE_COOKIE, { path: "/" });
@@ -2664,15 +2648,13 @@ app.get("/api/auth/callback", async (c) => {
 });
 app.post("/api/auth/logout", async (c) => {
   const token = getCookie(c, SESSION_COOKIE);
-  if (token)
-    await deleteSession(c.env, token);
+  if (token) await deleteSession(c.env, token);
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
   return c.json({ ok: true });
 });
 app.get("/api/me", async (c) => {
   const user = await currentUser(c);
-  if (!user)
-    return c.json({ loggedIn: false });
+  if (!user) return c.json({ loggedIn: false });
   let installationId = user.installation_id;
   if (installationId == null) {
     try {
@@ -2707,10 +2689,8 @@ app.get("/api/me", async (c) => {
 });
 var NAMESPACE_ALLOWED = /^[A-Za-z0-9._-]+$/;
 function assertValidNamespace(name) {
-  if (!name)
-    throw new ApiError(400, "\u547D\u540D\u7A7A\u95F4\u4E0D\u80FD\u4E3A\u7A7A");
-  if (name.length > 100)
-    throw new ApiError(400, "\u547D\u540D\u7A7A\u95F4\u6700\u957F 100 \u4E2A\u5B57\u7B26");
+  if (!name) throw new ApiError(400, "\u547D\u540D\u7A7A\u95F4\u4E0D\u80FD\u4E3A\u7A7A");
+  if (name.length > 100) throw new ApiError(400, "\u547D\u540D\u7A7A\u95F4\u6700\u957F 100 \u4E2A\u5B57\u7B26");
   if (!NAMESPACE_ALLOWED.test(name)) {
     throw new ApiError(400, "\u547D\u540D\u7A7A\u95F4\u53EA\u80FD\u5305\u542B\u5B57\u6BCD\u3001\u6570\u5B57\u4E0E . _ -");
   }
@@ -2786,8 +2766,7 @@ app.post("/api/register", async (c) => {
   } else {
     reused = true;
   }
-  if (!ns)
-    throw new ApiError(500, "\u547D\u540D\u7A7A\u95F4\u5199\u5165\u5F02\u5E38");
+  if (!ns) throw new ApiError(500, "\u547D\u540D\u7A7A\u95F4\u5199\u5165\u5F02\u5E38");
   console.log(`[register] ns inserted ${Date.now() - t0}ms`);
   await addCollaborator(c.env, token, user.login);
   console.log(`[register] addCollaborator ${Date.now() - t0}ms`);
@@ -2817,11 +2796,9 @@ app.post("/api/resync", async (c) => {
   const namespaces = await listNamespaces(c.env);
   const nodeIds = /* @__PURE__ */ new Map();
   for (const ns of namespaces) {
-    if (nodeIds.has(ns.github_id))
-      continue;
+    if (nodeIds.has(ns.github_id)) continue;
     const u = await getUser(c.env, ns.github_id);
-    if (u)
-      nodeIds.set(u.github_id, u.node_id);
+    if (u) nodeIds.set(u.github_id, u.node_id);
   }
   const inAnyNamespace = (b) => namespaces.some((ns) => b === ns.namespace || b.startsWith(`${ns.namespace}/`));
   const desired = /* @__PURE__ */ new Map();
@@ -2837,8 +2814,7 @@ app.post("/api/resync", async (c) => {
     desired.set(`${ns.namespace}/**/*`, [actor]);
   }
   for (const b of branches) {
-    if (b === c.env.BASE_BRANCH || inAnyNamespace(b))
-      continue;
+    if (b === c.env.BASE_BRANCH || inAnyNamespace(b)) continue;
     diff.orphans.push(b);
     desired.set(b, []);
   }
@@ -2855,14 +2831,10 @@ app.post("/api/resync", async (c) => {
     }
   }
   for (const r of existing) {
-    if (desired.has(r.pattern))
-      continue;
-    if (r.pattern.includes("*"))
-      continue;
-    if (r.pattern === c.env.BASE_BRANCH)
-      continue;
-    if (branches.includes(r.pattern))
-      continue;
+    if (desired.has(r.pattern)) continue;
+    if (r.pattern.includes("*")) continue;
+    if (r.pattern === c.env.BASE_BRANCH) continue;
+    if (branches.includes(r.pattern)) continue;
     try {
       await deleteBranchProtectionRule(token, r.id);
       diff.deleted.push(r.pattern);
@@ -2882,12 +2854,11 @@ app.all("*", async (c) => {
 });
 app.notFound((c) => c.json({ error: "\u63A5\u53E3\u4E0D\u5B58\u5728" }, 404));
 app.onError((err, c) => {
-  if (err instanceof ApiError)
-    return c.json({ error: err.message }, err.status);
+  if (err instanceof ApiError) return c.json({ error: err.message }, err.status);
   console.error("=== UNHANDLED ERROR ===", err && err.stack ? err.stack : err);
   return c.json({ error: "\u670D\u52A1\u5668\u5185\u90E8\u9519\u8BEF" }, 500);
 });
-var src_default = app;
+var index_default = app;
 export {
-  src_default as default
+  index_default as default
 };
