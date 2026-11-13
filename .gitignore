@@ -17,3 +17,4 @@ Lean4/.lake/build/ir/Googology.c
 *.7z
 temp/
 Lean4/
+.vscode/
