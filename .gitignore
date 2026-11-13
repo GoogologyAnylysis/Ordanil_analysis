@@ -18,3 +18,4 @@ Lean4/.lake/build/ir/Googology.c
 temp/
 Lean4/
 .vscode/
+node_modules/
