@@ -254,6 +254,8 @@ export async function createBranchProtectionRule(
         restrictsPushes: true,
         pushActorIds,
         isAdminEnforced: false,
+        // 允许删除分支：否则规则会连命名空间所有者自己都锁死，无法清理
+        allowsDeletions: true,
       },
     }
   );
@@ -281,6 +283,7 @@ export async function updateBranchProtectionRule(
         restrictsPushes: true,
         pushActorIds,
         isAdminEnforced: false,
+        allowsDeletions: true,
       },
     }
   );
