@@ -113,9 +113,21 @@
 - 若 $\text{cof}(x)\ge\omega$:
 - - $\mathcal{o}(x)[n]=\mathcal{o}(x[n]),\text{cf}(\mathcal{o}(x))=\text{cof}(x),\mathcal{o}(x)=sup\{\mathcal{o}(x)[n]\mid n < cf(\mathcal{o}(x))\}$
   
+5.对于命题$x,y\in PT,x\triangleright y$：
+- 若 $x=0$:
+- - $\nvdash x\triangleright y$
+- 若 $y=0,x\neq 0$:
+- - $\vdash x\triangleright y$
+- 若 $x=\varphi(x_{L_x},...,x_0),y=\varphi(y_{L_y},...,y_0)$:
+- - 若$L_x>L_y$:
+- - - $\vdash x\triangleright y$
+- - 若$L_x=L_y$:
+- - - 若$x_{L_x}> y_{L_y}$:
+- - - - $\vdash x\triangleright y$
+- - - 若$x_{L_x}= y_{L_y}$:
+- - - - $\vdash x\triangleright y \leftrightarrow \exists i (\forall j\in L_x\setminus i(x_j=y_j)\land x_i>y_i)$
 
-
-5.对于命题$x,y\in T,x> y$：
+6.对于命题$x,y\in T,x> y$：
 - 若 $x=0$:
 - - $\nvdash x> y$
 - 若 $x = a + b,y = c + d$:
@@ -128,7 +140,7 @@
 - 若 $x\in PT\setminus \{0\},y=c+d$:
 - - $\vdash x > y \leftrightarrow x + 0 > y$
 - 若 $x=\varphi(a_{L_1},...,a_0),y=\varphi(b_{L_2},...,b_0)$:
-- - 若 $L_1=L_2$:
+- - 
 - - 
   
 
