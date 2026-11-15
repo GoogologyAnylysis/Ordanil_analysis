@@ -69,7 +69,7 @@
 - $0\in OT$
 - $(a,b)\in OT^2\land \varphi_a(b) > b \Rightarrow \varphi_a(b)\in OT$
 - $a\in OT\Rightarrow \varphi_a(0)\in OT$
-- $(a,b)\in (OT\cap PT)\times OT\land a\ge b\Rightarrow a+b\in OT$
+- $(a,b)\in (OT\cap PT\setminus \{0\})\times OT\setminus \{0\}\land a\ge b\Rightarrow a+b\in OT$
 ### 1.2 有限维元版本
 1.$T$:
 - $0\in T$
@@ -114,7 +114,7 @@
 - - $\mathcal{o}(x)[n]=\mathcal{o}(x[n]),\text{cf}(\mathcal{o}(x))=\text{cof}(x),\mathcal{o}(x)=sup\{\mathcal{o}(x)[n]\mid n < cf(\mathcal{o}(x))\}$
   
 
-<!-- 
+
 5.对于命题$x,y\in T,x> y$：
 - 若 $x=0$:
 - - $\nvdash x> y$
@@ -129,7 +129,7 @@
 - - $\vdash x > y \leftrightarrow x + 0 > y$
 - 若 $x=\varphi(a_{L_1},...,a_0),y=\varphi(b_{L_2},...,b_0)$:
 - - 若 $L_1=L_2$:
-- -  -->
+- - 
   
 
 
