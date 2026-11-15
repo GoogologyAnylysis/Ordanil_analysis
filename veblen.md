@@ -114,8 +114,8 @@
 - - $\mathcal{o}(x)[n]=\mathcal{o}(x[n]),\text{cf}(\mathcal{o}(x))=\text{cof}(x),\mathcal{o}(x)=sup\{\mathcal{o}(x)[n]\mid n < cf(\mathcal{o}(x))\}$
   
 
-
-<!-- 5.对于命题$x,y\in T,x> y$：
+<!-- 
+5.对于命题$x,y\in T,x> y$：
 - 若 $x=0$:
 - - $\nvdash x> y$
 - 若 $x = a + b,y = c + d$:
@@ -129,11 +129,7 @@
 - - $\vdash x > y \leftrightarrow x + 0 > y$
 - 若 $x=\varphi(a_{L_1},...,a_0),y=\varphi(b_{L_2},...,b_0)$:
 - - 若 $L_1=L_2$:
-- - - $\vdash x > y \leftrightarrow b > d$
-- - 若 $a>c$:
-- - - $\vdash x > y \leftrightarrow x > d$
-- - 若 $a<c$:
-- - - $\vdash x > y \leftrightarrow b > y$ -->
+- -  -->
   
 
 
