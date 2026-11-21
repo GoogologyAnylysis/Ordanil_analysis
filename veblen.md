@@ -140,9 +140,23 @@
 - 若 $x\in PT\setminus \{0\},y=c+d$:
 - - $\vdash x > y \leftrightarrow x + 0 > y$
 - 若 $x=\varphi(a_{L_1},...,a_0),y=\varphi(b_{L_2},...,b_0)$:
-- - 
-- - 
-  
+- - 若 $L_1=L_2=L=0$:
+- - - $\vdash a_0>b_0 \rightarrow x> y$
+- - 若 $L_1=L_2=L \forall i \in [L,0)(a_i=b_i) $:
+- - - $\vdash a_0>b_0 \rightarrow x> y$
+- - else:
+- - - 若 $x\triangleright y$:
+- - - - 令 $f(h)=\varphi(\underbrace{b_{L_2},...,b_i,h,0...,}_{L_2})\land \lnot \exists n\in i (\forall j \in [L_2,i] (b_j<x)),x \triangleright f(0)$
+- - - - $\vdash x> y \leftrightarrow f(x)> y $
+- - - 若 $y\triangleright x$:
+- - - - 令 $f(h)=\varphi(\underbrace{a_{L_1},...,a_i,h,0...,}_{L_1})\land \lnot \exists n\in i (\forall j \in [L_1,i] (a_j<y)),y \triangleright f(0)$
+- - - - $\vdash x> y \leftrightarrow x>f(y) $
+
+6.以此定义 $ <,\le,\ge,=$
 
 
-
+7.$OT\subset T$
+- $0\in OT$
+- $L\in \mathbb{N},(a_i)_{i\in L}\in OT^L\land \forall i \in L(\varphi(a_{L-1},...,a_0)>a_i) \land \lnot\exists i\in L\forall j\in [L,i](a_j=0) \Rightarrow \varphi(a_{L-1},...,a_0)\in OT$
+- $a\in OT\Rightarrow \varphi_a(0)\in OT$
+- $(a,b)\in (OT\cap PT\setminus \{0\})\times OT\setminus \{0\}\land a\ge b\Rightarrow a+b\in OT$
